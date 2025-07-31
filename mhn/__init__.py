@@ -5,7 +5,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore
 from flask_security.utils import hash_password as hash
 from flask_mail import Mail
-from werkzeug.contrib.atom import AtomFeed
+from werkzeug.datastructures import ETags
+from xml.etree.ElementTree import Element, SubElement, tostring
+from datetime import datetime
+import xml.dom.minidom
 import xmltodict
 import uuid
 import random
@@ -15,6 +18,87 @@ import os
 import re
 
 csrf = CsrfProtect()
+
+
+class AtomFeed:
+    """Modern replacement for werkzeug.contrib.atom.AtomFeed"""
+    
+    def __init__(self, title, feed_url=None, url=None, subtitle=None, id=None):
+        self.title = title
+        self.feed_url = feed_url
+        self.url = url
+        self.subtitle = subtitle
+        self.id = id or feed_url
+        self.entries = []
+        
+    def add(self, title, content, content_type='text', author=None, 
+            url=None, updated=None, published=None, id=None):
+        entry = {
+            'title': title,
+            'content': content,
+            'content_type': content_type,
+            'author': author,
+            'url': url,
+            'updated': updated or datetime.utcnow(),
+            'published': published or datetime.utcnow(),
+            'id': id or url
+        }
+        self.entries.append(entry)
+        
+    def to_string(self):
+        """Generate XML string for the feed"""
+        feed = Element('feed', xmlns='http://www.w3.org/2005/Atom')
+        
+        title_elem = SubElement(feed, 'title')
+        title_elem.text = self.title
+        
+        if self.feed_url:
+            link_elem = SubElement(feed, 'link', href=self.feed_url, rel='self')
+            
+        if self.url:
+            link_elem = SubElement(feed, 'link', href=self.url)
+            
+        id_elem = SubElement(feed, 'id')
+        id_elem.text = self.id
+        
+        updated_elem = SubElement(feed, 'updated')
+        updated_elem.text = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        
+        for entry_data in self.entries:
+            entry = SubElement(feed, 'entry')
+            
+            entry_title = SubElement(entry, 'title')
+            entry_title.text = entry_data['title']
+            
+            if entry_data['id']:
+                entry_id = SubElement(entry, 'id')
+                entry_id.text = str(entry_data['id'])
+                
+            if entry_data['url']:
+                entry_link = SubElement(entry, 'link', href=entry_data['url'])
+                
+            entry_updated = SubElement(entry, 'updated')
+            entry_updated.text = entry_data['updated'].strftime('%Y-%m-%dT%H:%M:%SZ')
+            
+            entry_published = SubElement(entry, 'published')
+            entry_published.text = entry_data['published'].strftime('%Y-%m-%dT%H:%M:%SZ')
+            
+            entry_content = SubElement(entry, 'content', type=entry_data['content_type'])
+            entry_content.text = entry_data['content']
+            
+        # Pretty format the XML
+        rough_string = tostring(feed, 'utf-8')
+        reparsed = xml.dom.minidom.parseString(rough_string)
+        return reparsed.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+        
+    def get_response(self):
+        """Return Flask response with proper headers"""
+        from flask import Response
+        return Response(
+            self.to_string(),
+            mimetype='application/atom+xml',
+            headers={'Content-Type': 'application/atom+xml; charset=utf-8'}
+        )
 
 db = SQLAlchemy()
 # After defining `db`, import auth models due to
@@ -101,7 +185,7 @@ def get_feed():
     from mhn.common.clio import Clio
     from mhn.auth import current_user
     authfeed = mhn.config['FEED_AUTH_REQUIRED']
-    if authfeed and not current_user.is_authenticated():
+    if authfeed and not current_user.is_authenticated:
         abort(404)
     feed = AtomFeed('MHN HpFeeds Report', feed_url=request.url,
                     url=request.url_root)
