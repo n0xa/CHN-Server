@@ -6,7 +6,7 @@ from flask_mail import Message
 from sqlalchemy.exc import IntegrityError
 from flask_security.utils import (
         login_user as login, verify_and_update_password,
-        encrypt_password, logout_user as logout)
+        hash_password as encrypt_password, logout_user as logout)
 
 from mhn import db, mail
 from mhn import user_datastore
