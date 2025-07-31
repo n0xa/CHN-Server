@@ -100,93 +100,186 @@ class AtomFeed:
             headers={'Content-Type': 'application/atom+xml; charset=utf-8'}
         )
 
+# Initialize extensions
 db = SQLAlchemy()
-# After defining `db`, import auth models due to
-# circular dependency.
-from mhn.auth.models import User, Role, ApiKey
-
-user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-
-mhn = Flask(__name__)
-mhn.config.from_object('config')
-csrf.init_app(mhn)
-
-# Email app setup.
 mail = Mail()
-mail.init_app(mhn)
+security = Security()
 
-# Registering app on db instance.
-db.init_app(mhn)
-
-# Setup flask-security for auth.
-Security(mhn, user_datastore)
-
-# Registering blueprints.
-from mhn.api.views import api
-
-mhn.register_blueprint(api)
-
-from mhn.ui.views import ui
-
-mhn.register_blueprint(ui)
-
-from mhn.auth.views import auth
-
-mhn.register_blueprint(auth)
-
-# Trigger templatetag register.
-from mhn.common.templatetags import format_date
-
-mhn.jinja_env.filters['fdate'] = format_date
-
-from mhn.auth.contextprocessors import user_ctx
-
-mhn.context_processor(user_ctx)
-
-from mhn.common.contextprocessors import config_ctx
-
-mhn.context_processor(config_ctx)
-
-import logging
-from logging.handlers import RotatingFileHandler
-
-mhn.logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    '%(asctime)s -  %(pathname)s - %(message)s')
-handler = RotatingFileHandler(
-    mhn.config['LOG_FILE_PATH'], maxBytes=10240, backupCount=5, encoding='utf8')
-handler.setLevel(logging.INFO)
-handler.setFormatter(formatter)
-mhn.logger.addHandler(handler)
-if mhn.config['DEBUG']:
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    console.setFormatter(formatter)
-    mhn.logger.addHandler(console)
+# Global variables for compatibility
+user_datastore = None
+mhn = None
 
 
-@mhn.route('/feed.json')
-def json_feed():
-    feed_content = get_feed().to_string()
-    return jsonify(xmltodict.parse(feed_content))
+def create_app(config_object='config'):
+    """Application factory pattern for Flask app creation"""
+    global user_datastore, mhn
+    
+    app = Flask(__name__)
+    app.config.from_object(config_object)
+    
+    # Initialize extensions with app
+    csrf.init_app(app)
+    mail.init_app(app)
+    db.init_app(app)
+    
+    # Import models after db is configured
+    from mhn.auth.models import User, Role, ApiKey
+    
+    # Setup user datastore and security
+    user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+    
+    # Configure Flask-Security for version 5.x
+    app.config.setdefault('SECURITY_PASSWORD_HASH', 'bcrypt')
+    app.config.setdefault('SECURITY_PASSWORD_SINGLE_HASH', ['bcrypt', 'argon2', 'pbkdf2_sha256'])
+    app.config.setdefault('SECURITY_DEPRECATED_PASSWORD_SCHEMES', ['sha512_crypt'])
+    app.config.setdefault('SECURITY_LOGIN_URL', '/ui/login/')
+    app.config.setdefault('SECURITY_LOGOUT_URL', '/ui/logout/')
+    app.config.setdefault('SECURITY_POST_LOGIN_REDIRECT_URL', '/ui/')
+    app.config.setdefault('SECURITY_POST_LOGOUT_REDIRECT_URL', '/ui/login/')
+    app.config.setdefault('SECURITY_REGISTERABLE', False)  # Disable registration for security
+    app.config.setdefault('SECURITY_RECOVERABLE', True)
+    app.config.setdefault('SECURITY_TRACKABLE', True)
+    app.config.setdefault('SECURITY_CHANGEABLE', True)
+    app.config.setdefault('SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS', True)
+    
+    security.init_app(app, user_datastore)
+    
+    # Register blueprints
+    from mhn.api.views import api
+    app.register_blueprint(api)
+    
+    from mhn.ui.views import ui
+    app.register_blueprint(ui)
+    
+    from mhn.auth.views import auth
+    app.register_blueprint(auth)
+    
+    # Setup template filters and context processors
+    from mhn.common.templatetags import format_date
+    app.jinja_env.filters['fdate'] = format_date
+    
+    from mhn.auth.contextprocessors import user_ctx
+    app.context_processor(user_ctx)
+    
+    from mhn.common.contextprocessors import config_ctx
+    app.context_processor(config_ctx)
+    
+    # Setup error handlers
+    setup_error_handlers(app)
+    
+    # Setup logging
+    setup_logging(app)
+    
+    # Add feed routes
+    app.add_url_rule('/feed.json', 'json_feed', lambda: json_feed(app))
+    app.add_url_rule('/feed.xml', 'xml_feed', lambda: xml_feed(app))
+    
+    # Set global reference for backward compatibility
+    mhn = app
+    
+    return app
 
 
-@mhn.route('/feed.xml')
-def xml_feed():
-    return get_feed().get_response()
+def setup_error_handlers(app):
+    """Configure modern error handlers"""
+    from flask import jsonify, render_template
+    
+    @app.errorhandler(400)
+    def bad_request(error):
+        if request.content_type == 'application/json':
+            return jsonify({'error': 'Bad request'}), 400
+        return render_template('errors/400.html'), 400
+    
+    @app.errorhandler(401)
+    def unauthorized(error):
+        if request.content_type == 'application/json':
+            return jsonify({'error': 'Unauthorized'}), 401
+        return render_template('errors/401.html'), 401
+        
+    @app.errorhandler(403)
+    def forbidden(error):
+        if request.content_type == 'application/json':
+            return jsonify({'error': 'Forbidden'}), 403
+        return render_template('errors/403.html'), 403
+    
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.content_type == 'application/json':
+            return jsonify({'error': 'Not found'}), 404
+        return render_template('errors/404.html'), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        app.logger.error(f'Server Error: {error}')
+        if request.content_type == 'application/json':
+            return jsonify({'error': 'Internal server error'}), 500
+        return render_template('errors/500.html'), 500
 
 
-def makeurl(uri):
-    baseurl = mhn.config['SERVER_BASE_URL']
+def setup_logging(app):
+    """Configure application logging"""
+    import logging
+    from logging.handlers import RotatingFileHandler
+    
+    app.logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s -  %(pathname)s - %(message)s')
+    
+    if 'LOG_FILE_PATH' in app.config:
+        handler = RotatingFileHandler(
+            app.config['LOG_FILE_PATH'], maxBytes=10240, backupCount=5, encoding='utf8')
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        app.logger.addHandler(handler)
+        
+    if app.config.get('DEBUG'):
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(formatter)
+        app.logger.addHandler(console)
+
+
+def json_feed(app=None):
+    """JSON feed endpoint"""
+    if app is None:
+        app = mhn
+    with app.app_context():
+        feed_content = get_feed(app).to_string()
+        return jsonify(xmltodict.parse(feed_content))
+
+
+def xml_feed(app=None):
+    """XML feed endpoint"""
+    if app is None:
+        app = mhn
+    with app.app_context():
+        return get_feed(app).get_response()
+
+
+# Create default app instance for backward compatibility
+mhn = create_app()
+
+
+def makeurl(uri, app=None):
+    """Generate URL with base URL from config"""
+    if app is None:
+        app = mhn
+    baseurl = app.config['SERVER_BASE_URL']
     return urljoin(baseurl, uri)
 
 
-def get_feed():
+def get_feed(app=None):
+    """Generate Atom feed for honeypot sessions"""
+    if app is None:
+        app = mhn
+        
     from mhn.common.clio import Clio
     from mhn.auth import current_user
-    authfeed = mhn.config['FEED_AUTH_REQUIRED']
+    
+    authfeed = app.config['FEED_AUTH_REQUIRED']
     if authfeed and not current_user.is_authenticated:
         abort(404)
+        
     feed = AtomFeed('MHN HpFeeds Report', feed_url=request.url,
                     url=request.url_root)
     sessions = Clio().session.get(options={'limit': 1000})
@@ -196,7 +289,7 @@ def get_feed():
         feedtext = feedtext.format(**s.to_dict())
         feed.add('Feed', feedtext, content_type='text',
                  published=s.timestamp, updated=s.timestamp,
-                 url=makeurl(url_for('api.get_session', session_id=str(s._id))))
+                 url=makeurl(url_for('api.get_session', session_id=str(s._id)), app))
     return feed
 
 
