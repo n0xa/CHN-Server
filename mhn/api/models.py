@@ -26,16 +26,23 @@ class Sensor(db.Model, APIModel):
     }
 
     __tablename__ = 'sensors'
+    __table_args__ = (
+        db.Index('idx_sensor_uuid', 'uuid'),
+        db.Index('idx_sensor_identifier', 'identifier'),
+        db.Index('idx_sensor_created_date', 'created_date'),
+        db.Index('idx_sensor_honeypot', 'honeypot'),
+        db.Index('idx_sensor_ip', 'ip'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True)
-    name = db.Column(db.String(50))
+    uuid = db.Column(db.String(36), unique=True, nullable=False)
+    name = db.Column(db.String(50), nullable=False)
     created_date = db.Column(
-            db.DateTime(), default=datetime.utcnow)
-    ip = db.Column(db.String(15))
-    hostname = db.Column(db.String(50))
-    identifier = db.Column(db.String(50), unique=True)
-    honeypot = db.Column(db.String(50))
+            db.DateTime(), default=datetime.utcnow, nullable=False)
+    ip = db.Column(db.String(15), nullable=True)
+    hostname = db.Column(db.String(50), nullable=False)
+    identifier = db.Column(db.String(50), unique=True, nullable=False)
+    honeypot = db.Column(db.String(50), nullable=False)
 
     def __init__(
           self, uuid=None, name=None, created_date=None, honeypot=None,

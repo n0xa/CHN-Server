@@ -1,11 +1,11 @@
-FROM ubuntu:18.04
-# hadolint ignore=DL3008,DL3005
+# Use Python 3.12 official image
+FROM python:3.12-slim-bookworm
 
 LABEL maintainer="Team STINGAR <team-stingar@duke.edu>"
 LABEL name="chnserver"
-LABEL version="1.9.1"
+LABEL version="2.0.0"
 LABEL release="1"
-LABEL summary="Community Honey Network Server"
+LABEL summary="Community Honey Network Server - Modernized"
 LABEL description="Multi-honeypot sensor management, uses a network of VMs and a centralized server for management."
 LABEL authoritative-source-url="https://github.com/CommunityHoneyNetwork/CHN-Server"
 LABEL changelog-url="https://github.com/CommunityHoneyNetwork/CHN-Server/commits/master"
@@ -14,11 +14,27 @@ VOLUME /tls
 
 ENV TZ "America/New_York"
 ENV DEBIAN_FRONTEND "noninteractive"
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
 
-# hadolint ignore=DL3008,DL3005
+# Install system dependencies
 RUN apt-get update \
-	&& apt-get install --no-install-recommends -y gcc git nginx python3-pip python3-dev redis-server \
-        libgeoip-dev libsqlite3-dev runit python3-certbot-nginx net-tools jq curl libffi-dev \
+    && apt-get install --no-install-recommends -y \
+        gcc \
+        git \
+        nginx \
+        redis-server \
+        libsqlite3-dev \
+        runit \
+        python3-certbot-nginx \
+        net-tools \
+        jq \
+        curl \
+        libffi-dev \
+        build-essential \
+        pkg-config \
+        libmaxminddb-dev \
+        rust-all \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

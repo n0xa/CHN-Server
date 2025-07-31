@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from flask import Blueprint, request, jsonify, make_response
 from bson.errors import InvalidId
 
-from mhn import db, csrf
+from mhn import db, csrf, limiter
 from mhn.api import errors
 from mhn.api.models import (
         Sensor, DeployScript as Script, DeployScript)
@@ -26,6 +26,7 @@ api = Blueprint('api', __name__, url_prefix='/api')
 # Endpoints for the Sensor resource.
 @api.route('/sensor/', methods=['POST'])
 @csrf.exempt
+@limiter.limit("10 per minute")  # Rate limit sensor creation
 @deploy_auth
 def create_sensor():
     missing = Sensor.check_required(request.json)

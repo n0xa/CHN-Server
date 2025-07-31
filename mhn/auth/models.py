@@ -19,6 +19,12 @@ class Role(db.Model, RoleMixin):
 
 
 class User(db.Model, APIModel, UserMixin):
+    __table_args__ = (
+        db.Index('idx_user_email', 'email'),
+        db.Index('idx_user_active', 'active'),
+        db.Index('idx_user_confirmed_at', 'confirmed_at'),
+    )
+    
     all_fields = {
         'email': {'required': True, 'editable': False},
         'password': {'required': True, 'editable': True},
@@ -26,10 +32,10 @@ class User(db.Model, APIModel, UserMixin):
     }
 
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(255), unique=True)
-    password = db.Column(db.String(255))
-    active = db.Column(db.Boolean())
-    confirmed_at = db.Column(db.DateTime())
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    active = db.Column(db.Boolean(), default=True, nullable=False)
+    confirmed_at = db.Column(db.DateTime(), nullable=True)
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
 

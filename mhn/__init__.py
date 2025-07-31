@@ -14,10 +14,17 @@ import uuid
 import random
 import string
 from flask_wtf.csrf import CsrfProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
+from flask_smorest import Api
 import os
 import re
 
 csrf = CsrfProtect()
+limiter = Limiter(key_func=get_remote_address)
+talisman = Talisman()
+api_docs = Api()
 
 
 class AtomFeed:
@@ -117,10 +124,48 @@ def create_app(config_object='config'):
     app = Flask(__name__)
     app.config.from_object(config_object)
     
+    # Validate configuration
+    if not app.config.get('TESTING', False):
+        from mhn.config_validator import ConfigValidator
+        errors, warnings = ConfigValidator.validate_config(app.config)
+        if errors:
+            app.logger.error("Configuration validation failed:")
+            for error in errors:
+                app.logger.error(f"  • {error}")
+            raise RuntimeError("Invalid configuration. Check logs for details.")
+        if warnings:
+            for warning in warnings:
+                app.logger.warning(f"Config warning: {warning}")
+    
     # Initialize extensions with app
     csrf.init_app(app)
     mail.init_app(app)
     db.init_app(app)
+    
+    # Initialize security extensions
+    limiter.init_app(app)
+    
+    # Configure Talisman security headers (adjust for honeypot functionality)
+    talisman.init_app(app, 
+        force_https=False,  # Honeypots often run on HTTP
+        strict_transport_security=False,
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': "'self' 'unsafe-inline' https://kozea.github.io",
+            'style-src': "'self' 'unsafe-inline'",
+            'img-src': "'self' data:",
+        }
+    )
+    
+    # Initialize API documentation
+    app.config.setdefault('API_TITLE', 'CHN Server API')
+    app.config.setdefault('API_VERSION', 'v2.0')
+    app.config.setdefault('OPENAPI_VERSION', '3.0.2')
+    app.config.setdefault('OPENAPI_URL_PREFIX', '/api/docs')
+    app.config.setdefault('OPENAPI_SWAGGER_UI_PATH', '/swagger')
+    app.config.setdefault('OPENAPI_SWAGGER_UI_URL', 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/')
+    
+    api_docs.init_app(app)
     
     # Import models after db is configured
     from mhn.auth.models import User, Role, ApiKey
@@ -217,17 +262,52 @@ def setup_error_handlers(app):
 
 
 def setup_logging(app):
-    """Configure application logging"""
+    """Configure structured application logging"""
     import logging
+    import json
     from logging.handlers import RotatingFileHandler
     
+    class StructuredFormatter(logging.Formatter):
+        """JSON structured log formatter"""
+        def format(self, record):
+            log_entry = {
+                'timestamp': self.formatTime(record),
+                'level': record.levelname,
+                'logger': record.name,
+                'message': record.getMessage(),
+                'module': record.module,
+                'function': record.funcName,
+                'line': record.lineno
+            }
+            
+            # Add request context if available
+            try:
+                from flask import request, g
+                if request:
+                    log_entry.update({
+                        'request_id': getattr(g, 'request_id', None),
+                        'remote_addr': request.remote_addr,
+                        'method': request.method,
+                        'url': request.url,
+                        'user_agent': request.headers.get('User-Agent')
+                    })
+            except:
+                pass
+                
+            return json.dumps(log_entry)
+    
     app.logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '%(asctime)s -  %(pathname)s - %(message)s')
+    
+    # Use JSON formatter for structured logging
+    if app.config.get('STRUCTURED_LOGGING', True):
+        formatter = StructuredFormatter()
+    else:
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
     if 'LOG_FILE_PATH' in app.config:
         handler = RotatingFileHandler(
-            app.config['LOG_FILE_PATH'], maxBytes=10240, backupCount=5, encoding='utf8')
+            app.config['LOG_FILE_PATH'], maxBytes=10240000, backupCount=5, encoding='utf8')
         handler.setLevel(logging.INFO)
         handler.setFormatter(formatter)
         app.logger.addHandler(handler)
@@ -237,6 +317,13 @@ def setup_logging(app):
         console.setLevel(logging.INFO)
         console.setFormatter(formatter)
         app.logger.addHandler(console)
+        
+    # Add request ID middleware
+    @app.before_request
+    def add_request_id():
+        import uuid
+        from flask import g
+        g.request_id = str(uuid.uuid4())[:8]
 
 
 def json_feed(app=None):
