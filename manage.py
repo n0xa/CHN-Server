@@ -1,9 +1,8 @@
 import os
 from urllib.parse import urlparse
+import click
 
 import initdatabase
-from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
 
 try:
     import config
@@ -26,24 +25,42 @@ except ImportError:
         finally:
             raise SystemExit('Exiting now.')
 
-from mhn import mhn, db
+from mhn import create_app, db
+from flask_migrate import Migrate
+
+# Create app instance
+app = create_app()
+
+# Initialize Flask-Migrate
+migrate = Migrate(app, db)
+
+@app.cli.command()
+@click.option('--host', default='0.0.0.0', help='Host to bind to')
+@click.option('--port', default=None, type=int, help='Port to bind to')
+@click.option('--debug', is_flag=True, help='Enable debug mode')
+def run(host, port, debug):
+    """Run the development server."""
+    if port is None:
+        serverurl = urlparse(config.SERVER_BASE_URL)
+        port = serverurl.port
+    
+    debug_mode = debug or config.DEBUG
+    app.run(debug=debug_mode, host=host, port=port)
+
+@app.cli.command()
+def runlocal():
+    """Run the development server locally."""
+    serverurl = urlparse(config.SERVER_BASE_URL)
+    app.run(debug=config.DEBUG, host='0.0.0.0', port=serverurl.port)
 
 if __name__ == '__main__':
-    migrate = Migrate(mhn, db)
-    manager = Manager(mhn)
-    manager.add_command('db', MigrateCommand)
-
-    @manager.command
-    def run():
-        # Takes run parameters from configuration.
-        serverurl = urlparse(config.SERVER_BASE_URL)
-        mhn.run(debug=config.DEBUG, host='0.0.0.0',
-                port=serverurl.port)
-
-    @manager.command
-    def runlocal():
-        serverurl = urlparse(config.SERVER_BASE_URL)
-        mhn.run(debug=config.DEBUG, host='0.0.0.0',
-                port=serverurl.port)
-
-    manager.run()
+    # For backward compatibility with python manage.py
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] in ['run', 'runlocal']:
+        if sys.argv[1] == 'run':
+            run.main(standalone_mode=False)
+        elif sys.argv[1] == 'runlocal':
+            runlocal.main(standalone_mode=False)
+    else:
+        print("Use 'flask run' or 'python manage.py run' to start the server")
+        print("Use 'flask db' commands for database migrations")
