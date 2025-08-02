@@ -250,8 +250,12 @@ def graph_combos():
 
 def top_kippo_cowrie_attackers(clio):
     top_attackers = []
-    top_attackers += clio.session._tops('source_ip', 10, honeypot='kippo')
-    top_attackers += clio.session._tops('source_ip', 10, honeypot='cowrie')
+    kippo_tops = clio.session._tops('source_ip', 10, honeypot='kippo')
+    if kippo_tops:
+        top_attackers += kippo_tops
+    cowrie_tops = clio.session._tops('source_ip', 10, honeypot='cowrie')
+    if cowrie_tops:
+        top_attackers += cowrie_tops
 
     import collections
     grouped = collections.Counter()

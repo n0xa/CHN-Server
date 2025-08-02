@@ -415,7 +415,7 @@ class HpFeed(ResourceMixin):
             req_args['payload'] = {'$regex': req_args['payload']}
 
         cnt_query = super(HpFeed, self)._clean_query(req_args)
-        count = self.collection.find(cnt_query).count()
+        count = self.collection.count_documents(cnt_query)
 
         columns = self.channel_map.get(req_args['channel'])
 
