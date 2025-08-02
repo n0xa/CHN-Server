@@ -88,7 +88,7 @@ def generate_config():
         args = parser.parse_args(sys.argv[1:])
 
     # check for unattended install
-    if args.which is 'unattended':
+    if args.which == 'unattended':
         is_unattended = True
 
     if is_unattended:

@@ -19,7 +19,6 @@ from mhn.common.utils import (
 from mhn.common.clio import Clio
 
 ui = Blueprint('ui', __name__, url_prefix='/ui')
-from mhn import mhn as app
 
 PYGAL_CONFIG = pygal.config.Config()
 PYGAL_CONFIG.js = (
@@ -30,7 +29,7 @@ PYGAL_CONFIG.js = (
 def remove_control_characters(s):
     return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
 
-@app.template_filter()
+@ui.app_template_filter()
 def number_format(value):
     return '{:,d}'.format(value)
 
@@ -55,23 +54,34 @@ def login_user():
     return render_template('security/login_user.html')
 
 
-@mhn.route('/')
+@ui.route('/')
 @ui.route('/dashboard/', methods=['GET'])
 @login_required
 def dashboard():
-    clio = Clio()
-    # Number of attacks in the last 24 hours.
-    attackcount = clio.session.count(hours_ago=24)
-    # TOP 5 attacker ips.
-    top_attackers = clio.session.top_attackers(top=5, hours_ago=24)
-    # TOP 5 attacked ports
-    top_ports = clio.session.top_targeted_ports(top=5, hours_ago=24)
-    # Top 5 honey pots with counts
-    top_hp = clio.session.top_hp(top=5, hours_ago=24)
-    # Top Honeypot sensors
-    top_sensor = clio.session.top_sensor(top=5, hours_ago=24)
-    # TOP 5 sigs
-    freq_sigs = clio.hpfeed.top_sigs(top=5, hours_ago=24)
+    try:
+        clio = Clio()
+        # Number of attacks in the last 24 hours.
+        attackcount = clio.session.count(hours_ago=24) or 0
+        # TOP 5 attacker ips.
+        top_attackers = clio.session.top_attackers(top=5, hours_ago=24) or []
+        # TOP 5 attacked ports
+        top_ports = clio.session.top_targeted_ports(top=5, hours_ago=24) or []
+        # Top 5 honey pots with counts
+        top_hp = clio.session.top_hp(top=5, hours_ago=24) or []
+        # Top Honeypot sensors
+        top_sensor = clio.session.top_sensor(top=5, hours_ago=24) or []
+        # TOP 5 sigs
+        freq_sigs = clio.hpfeed.top_sigs(top=5, hours_ago=24) or []
+    except Exception as e:
+        # If database/mongo connection fails, provide safe defaults
+        print(f"Dashboard data fetch error: {e}")
+        attackcount = 0
+        top_attackers = []
+        top_ports = []
+        top_hp = []
+        top_sensor = []
+        freq_sigs = []
+    
     return render_template('ui/dashboard.html',
                            attackcount=attackcount,
                            top_attackers=top_attackers,
@@ -187,7 +197,7 @@ def get_credentials_payloads(clio):
     return credentials_payloads
 
 
-@app.route('/image/top_passwords.svg')
+@ui.route('/image/top_passwords.svg')
 @login_required
 def graph_passwords():
     clio = Clio()
@@ -204,7 +214,7 @@ def graph_passwords():
     return bar_chart.render_response()
 
 
-@app.route('/image/top_users.svg')
+@ui.route('/image/top_users.svg')
 @login_required
 def graph_users():
     clio = Clio()
@@ -221,7 +231,7 @@ def graph_users():
     return bar_chart.render_response()
 
 
-@app.route('/image/top_combos.svg')
+@ui.route('/image/top_combos.svg')
 @login_required
 def graph_combos():
     clio = Clio()
@@ -240,8 +250,12 @@ def graph_combos():
 
 def top_kippo_cowrie_attackers(clio):
     top_attackers = []
-    top_attackers += clio.session._tops('source_ip', 10, honeypot='kippo')
-    top_attackers += clio.session._tops('source_ip', 10, honeypot='cowrie')
+    kippo_tops = clio.session._tops('source_ip', 10, honeypot='kippo')
+    if kippo_tops:
+        top_attackers += kippo_tops
+    cowrie_tops = clio.session._tops('source_ip', 10, honeypot='cowrie')
+    if cowrie_tops:
+        top_attackers += cowrie_tops
 
     import collections
     grouped = collections.Counter()
@@ -250,7 +264,7 @@ def top_kippo_cowrie_attackers(clio):
     return [{'source_ip': ip, 'count': count} for ip, count in sorted(grouped.items(),
                                                                       key=lambda x: x[1], reverse=True)]
 
-@app.route('/image/top_sessions.svg')
+@ui.route('/image/top_sessions.svg')
 @login_required
 def graph_top_attackers():
     clio = Clio()

@@ -1,0 +1,31 @@
+#!/bin/ksh
+# /etc/rc.d/chn init file for launching CHN as a service on OpenBSD 
+
+daemon="/opt/chnserver/CHN-Server/venv/bin/uwsgi"
+daemon_flags="--ini /opt/chnserver/CHN-Server/uwsgi.ini --daemonize /opt/chnserver/CHN-Server/logs/uwsgi.log"
+daemon_user="chn"
+daemon_timeout=30
+
+. /etc/rc.d/rc.subr
+
+pexp="uwsgi.*chn"
+rc_bg=YES
+rc_reload=NO
+
+rc_pre() {
+	# Check for config file
+	if [ ! -f /opt/chnserver/CHN-Server/config.py ]; then
+		echo "Configuration file not found. Please run:"
+		echo "  cd /opt/chnserver/CHN-Server && python3 generateconfig.py"
+		return 1
+	fi
+	
+	# Check for database
+	if [ ! -f /opt/chnserver/CHN-Server/sqlite/mhn.db ]; then
+		echo "Database not found. Please initialize it first:"
+		echo "  cd /opt/chnserver/CHN-Server && python3 manage.py db upgrade"
+		return 1
+	fi
+}
+
+rc_cmd $1
