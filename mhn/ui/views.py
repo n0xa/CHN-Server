@@ -58,19 +58,30 @@ def login_user():
 @ui.route('/dashboard/', methods=['GET'])
 @login_required
 def dashboard():
-    clio = Clio()
-    # Number of attacks in the last 24 hours.
-    attackcount = clio.session.count(hours_ago=24)
-    # TOP 5 attacker ips.
-    top_attackers = clio.session.top_attackers(top=5, hours_ago=24)
-    # TOP 5 attacked ports
-    top_ports = clio.session.top_targeted_ports(top=5, hours_ago=24)
-    # Top 5 honey pots with counts
-    top_hp = clio.session.top_hp(top=5, hours_ago=24)
-    # Top Honeypot sensors
-    top_sensor = clio.session.top_sensor(top=5, hours_ago=24)
-    # TOP 5 sigs
-    freq_sigs = clio.hpfeed.top_sigs(top=5, hours_ago=24)
+    try:
+        clio = Clio()
+        # Number of attacks in the last 24 hours.
+        attackcount = clio.session.count(hours_ago=24) or 0
+        # TOP 5 attacker ips.
+        top_attackers = clio.session.top_attackers(top=5, hours_ago=24) or []
+        # TOP 5 attacked ports
+        top_ports = clio.session.top_targeted_ports(top=5, hours_ago=24) or []
+        # Top 5 honey pots with counts
+        top_hp = clio.session.top_hp(top=5, hours_ago=24) or []
+        # Top Honeypot sensors
+        top_sensor = clio.session.top_sensor(top=5, hours_ago=24) or []
+        # TOP 5 sigs
+        freq_sigs = clio.hpfeed.top_sigs(top=5, hours_ago=24) or []
+    except Exception as e:
+        # If database/mongo connection fails, provide safe defaults
+        print(f"Dashboard data fetch error: {e}")
+        attackcount = 0
+        top_attackers = []
+        top_ports = []
+        top_hp = []
+        top_sensor = []
+        freq_sigs = []
+    
     return render_template('ui/dashboard.html',
                            attackcount=attackcount,
                            top_attackers=top_attackers,

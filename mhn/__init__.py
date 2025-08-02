@@ -227,38 +227,60 @@ def create_app(config_object='config'):
 
 def setup_error_handlers(app):
     """Configure modern error handlers"""
-    from flask import jsonify, render_template
+    from flask import jsonify, render_template, redirect, url_for
+    
+    def try_render_template(template, fallback_html, status_code):
+        """Try to render template, fall back to simple HTML if template doesn't exist"""
+        try:
+            return render_template(template), status_code
+        except:
+            return fallback_html, status_code
     
     @app.errorhandler(400)
     def bad_request(error):
         if request.content_type == 'application/json':
             return jsonify({'error': 'Bad request'}), 400
-        return render_template('errors/400.html'), 400
+        return try_render_template('errors/400.html', 
+                                 '<h1>400 - Bad Request</h1><p>The request could not be understood.</p>', 400)
     
     @app.errorhandler(401)
     def unauthorized(error):
         if request.content_type == 'application/json':
             return jsonify({'error': 'Unauthorized'}), 401
-        return render_template('errors/401.html'), 401
+        # Redirect to login page instead of showing error
+        try:
+            return redirect(url_for('ui.login_user'))
+        except:
+            return try_render_template('errors/401.html', 
+                                     '<h1>401 - Unauthorized</h1><p>Please log in to access this resource.</p>', 401)
         
     @app.errorhandler(403)
     def forbidden(error):
         if request.content_type == 'application/json':
             return jsonify({'error': 'Forbidden'}), 403
-        return render_template('errors/403.html'), 403
+        return try_render_template('errors/403.html', 
+                                 '<h1>403 - Forbidden</h1><p>You do not have permission to access this resource.</p>', 403)
     
     @app.errorhandler(404)
     def not_found(error):
         if request.content_type == 'application/json':
             return jsonify({'error': 'Not found'}), 404
-        return render_template('errors/404.html'), 404
+        # For root path, redirect to UI
+        if request.path == '/':
+            try:
+                return redirect(url_for('ui.dashboard'))
+            except:
+                pass
+        return try_render_template('errors/404.html', 
+                                 '<h1>404 - Not Found</h1><p>The requested resource was not found.</p>', 404)
     
     @app.errorhandler(500)
     def internal_error(error):
         app.logger.error(f'Server Error: {error}')
         if request.content_type == 'application/json':
             return jsonify({'error': 'Internal server error'}), 500
-        return render_template('errors/500.html'), 500
+        return try_render_template('errors/500.html', 
+                                 '<h1>500 - Internal Server Error</h1><p>An internal error occurred.</p>', 500)
 
 
 def setup_logging(app):

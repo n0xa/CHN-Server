@@ -56,11 +56,44 @@ def runlocal():
 if __name__ == '__main__':
     # For backward compatibility with python manage.py
     import sys
+    from urllib.parse import urlparse
+    
     if len(sys.argv) > 1 and sys.argv[1] in ['run', 'runlocal']:
         if sys.argv[1] == 'run':
-            run.main(standalone_mode=False)
+            # Extract parameters from command line or use defaults
+            host = '0.0.0.0'
+            port = None
+            debug = False
+            
+            # Parse additional arguments
+            i = 2
+            while i < len(sys.argv):
+                if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
+                    host = sys.argv[i + 1]
+                    i += 2
+                elif sys.argv[i] == '--port' and i + 1 < len(sys.argv):
+                    port = int(sys.argv[i + 1])
+                    i += 2
+                elif sys.argv[i] == '--debug':
+                    debug = True
+                    i += 1
+                else:
+                    i += 1
+            
+            # If no port specified, get from config
+            if port is None:
+                serverurl = urlparse(config.SERVER_BASE_URL)
+                port = serverurl.port or 5000
+            
+            debug_mode = debug or config.DEBUG
+            print(f"Starting development server on {host}:{port}")
+            app.run(debug=debug_mode, host=host, port=port)
+            
         elif sys.argv[1] == 'runlocal':
-            runlocal.main(standalone_mode=False)
+            serverurl = urlparse(config.SERVER_BASE_URL)
+            port = serverurl.port or 5000
+            print(f"Starting local development server on 0.0.0.0:{port}")
+            app.run(debug=config.DEBUG, host='0.0.0.0', port=port)
     else:
         print("Use 'flask run' or 'python manage.py run' to start the server")
         print("Use 'flask db' commands for database migrations")

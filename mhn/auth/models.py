@@ -37,6 +37,14 @@ class User(db.Model, APIModel, UserMixin):
     active = db.Column(db.Boolean(), default=True, nullable=False)
     confirmed_at = db.Column(db.DateTime(), nullable=True)
     fs_uniquifier = db.Column(db.String(255), unique=True, nullable=False)
+    
+    # Flask-Security tracking fields
+    current_login_at = db.Column(db.DateTime())
+    last_login_at = db.Column(db.DateTime())
+    current_login_ip = db.Column(db.String(100))
+    last_login_ip = db.Column(db.String(100))
+    login_count = db.Column(db.Integer, default=0)
+    
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
 

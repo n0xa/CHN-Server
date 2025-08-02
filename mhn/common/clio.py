@@ -178,8 +178,8 @@ class ResourceMixin(object):
 
     def count(self, **kwargs):
         query = self.__class__._clean_query(kwargs)
-        # Just counting the results.
-        return self.collection.find(query).count()
+        # Just counting the results using modern PyMongo method
+        return self.collection.count_documents(query)
 
     @property
     def collection(self):
