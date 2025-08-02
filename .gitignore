@@ -4,3 +4,5 @@ TODO
 *.pyc
 mhn/static/mhn.rules
 storage/
+config.py
+venv/
