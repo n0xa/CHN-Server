@@ -306,6 +306,14 @@ def setup_logging(app):
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
     if 'LOG_FILE_PATH' in app.config:
+        log_dir = os.path.dirname(app.config['LOG_FILE_PATH'])
+        if log_dir and not os.path.exists(log_dir):
+            try:
+                os.makedirs(log_dir, exist_ok=True)
+            except (OSError, PermissionError) as e:
+                print(f"ERROR: Cannot create log directory '{log_dir}': {e}", file=sys.stderr)
+                print(f"Please create the directory manually or check permissions.", file=sys.stderr)
+                sys.exit(1)
         handler = RotatingFileHandler(
             app.config['LOG_FILE_PATH'], maxBytes=10240000, backupCount=5, encoding='utf8')
         handler.setLevel(logging.INFO)

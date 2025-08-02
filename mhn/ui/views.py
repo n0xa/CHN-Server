@@ -19,7 +19,6 @@ from mhn.common.utils import (
 from mhn.common.clio import Clio
 
 ui = Blueprint('ui', __name__, url_prefix='/ui')
-from mhn import mhn as app
 
 PYGAL_CONFIG = pygal.config.Config()
 PYGAL_CONFIG.js = (
@@ -30,7 +29,7 @@ PYGAL_CONFIG.js = (
 def remove_control_characters(s):
     return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
 
-@app.template_filter()
+@ui.app_template_filter()
 def number_format(value):
     return '{:,d}'.format(value)
 
@@ -55,7 +54,7 @@ def login_user():
     return render_template('security/login_user.html')
 
 
-@mhn.route('/')
+@ui.route('/')
 @ui.route('/dashboard/', methods=['GET'])
 @login_required
 def dashboard():
@@ -187,7 +186,7 @@ def get_credentials_payloads(clio):
     return credentials_payloads
 
 
-@app.route('/image/top_passwords.svg')
+@ui.route('/image/top_passwords.svg')
 @login_required
 def graph_passwords():
     clio = Clio()
@@ -204,7 +203,7 @@ def graph_passwords():
     return bar_chart.render_response()
 
 
-@app.route('/image/top_users.svg')
+@ui.route('/image/top_users.svg')
 @login_required
 def graph_users():
     clio = Clio()
@@ -221,7 +220,7 @@ def graph_users():
     return bar_chart.render_response()
 
 
-@app.route('/image/top_combos.svg')
+@ui.route('/image/top_combos.svg')
 @login_required
 def graph_combos():
     clio = Clio()
@@ -250,7 +249,7 @@ def top_kippo_cowrie_attackers(clio):
     return [{'source_ip': ip, 'count': count} for ip, count in sorted(grouped.items(),
                                                                       key=lambda x: x[1], reverse=True)]
 
-@app.route('/image/top_sessions.svg')
+@ui.route('/image/top_sessions.svg')
 @login_required
 def graph_top_attackers():
     clio = Clio()

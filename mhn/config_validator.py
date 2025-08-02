@@ -44,29 +44,30 @@ class ConfigValidator:
         
         # Check required settings
         for setting in cls.REQUIRED_SETTINGS:
-            if not hasattr(config_obj, setting) or not getattr(config_obj, setting):
+            value = config_obj.get(setting) if hasattr(config_obj, 'get') else getattr(config_obj, setting, None)
+            if not value:
                 errors.append(f"Required setting '{setting}' is missing or empty")
         
         # Validate specific settings
-        if hasattr(config_obj, 'SECRET_KEY'):
-            secret_key = getattr(config_obj, 'SECRET_KEY')
+        secret_key = config_obj.get('SECRET_KEY') if hasattr(config_obj, 'get') else getattr(config_obj, 'SECRET_KEY', None)
+        if secret_key:
             if len(secret_key) < 32:
                 warnings.append("SECRET_KEY should be at least 32 characters long")
         
-        if hasattr(config_obj, 'SERVER_BASE_URL'):
-            url = getattr(config_obj, 'SERVER_BASE_URL')
+        url = config_obj.get('SERVER_BASE_URL') if hasattr(config_obj, 'get') else getattr(config_obj, 'SERVER_BASE_URL', None)
+        if url:
             parsed = urlparse(url)
             if not parsed.scheme or not parsed.netloc:
                 errors.append("SERVER_BASE_URL must be a valid URL")
         
-        if hasattr(config_obj, 'SUPERUSER_EMAIL'):
-            email = getattr(config_obj, 'SUPERUSER_EMAIL')
+        email = config_obj.get('SUPERUSER_EMAIL') if hasattr(config_obj, 'get') else getattr(config_obj, 'SUPERUSER_EMAIL', None)
+        if email:
             if '@' not in email:
                 errors.append("SUPERUSER_EMAIL must be a valid email address")
         
         # Validate database URI
-        if hasattr(config_obj, 'SQLALCHEMY_DATABASE_URI'):
-            db_uri = getattr(config_obj, 'SQLALCHEMY_DATABASE_URI')
+        db_uri = config_obj.get('SQLALCHEMY_DATABASE_URI') if hasattr(config_obj, 'get') else getattr(config_obj, 'SQLALCHEMY_DATABASE_URI', None)
+        if db_uri:
             if db_uri.startswith('sqlite:///'):
                 # Check if directory exists for SQLite
                 db_path = db_uri.replace('sqlite:///', '')
@@ -76,10 +77,9 @@ class ConfigValidator:
         
         # Check optional settings types
         for setting, expected_type in cls.OPTIONAL_SETTINGS.items():
-            if hasattr(config_obj, setting):
-                value = getattr(config_obj, setting)
-                if value is not None and not isinstance(value, expected_type):
-                    warnings.append(f"Setting '{setting}' should be of type {expected_type.__name__}")
+            value = config_obj.get(setting) if hasattr(config_obj, 'get') else getattr(config_obj, setting, None)
+            if value is not None and not isinstance(value, expected_type):
+                warnings.append(f"Setting '{setting}' should be of type {expected_type.__name__}")
         
         return errors, warnings
     

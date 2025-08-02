@@ -36,6 +36,7 @@ class User(db.Model, APIModel, UserMixin):
     password = db.Column(db.String(255), nullable=False)
     active = db.Column(db.Boolean(), default=True, nullable=False)
     confirmed_at = db.Column(db.DateTime(), nullable=True)
+    fs_uniquifier = db.Column(db.String(255), unique=True, nullable=False)
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
 

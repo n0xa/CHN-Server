@@ -3,7 +3,26 @@ from flask import current_app as app, url_for
 from mhn.ui import constants
 from config import MHN_SERVER_HOME
 import os
-from werkzeug.contrib.cache import SimpleCache
+try:
+    from werkzeug.contrib.cache import SimpleCache
+except ImportError:
+    # Fallback implementation for newer Werkzeug versions
+    class SimpleCache:
+        def __init__(self, threshold=500, default_timeout=300):
+            self.cache = {}
+            self.threshold = threshold
+            self.default_timeout = default_timeout
+        
+        def get(self, key):
+            return self.cache.get(key)
+        
+        def set(self, key, value, timeout=None):
+            if len(self.cache) >= self.threshold:
+                # Simple cleanup - remove some old entries
+                keys_to_remove = list(self.cache.keys())[:self.threshold//2]
+                for k in keys_to_remove:
+                    del self.cache[k]
+            self.cache[key] = value
 from ipaddress import ip_address
 import struct
 from mhn.api.models import Sensor
