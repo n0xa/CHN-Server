@@ -8,7 +8,7 @@ daemon_timeout=30
 
 . /etc/rc.d/rc.subr
 
-pexp="uwsgi.*chn"
+pexp=".*uwsgi.*CHN-Server.*"
 rc_bg=YES
 rc_reload=NO
 
