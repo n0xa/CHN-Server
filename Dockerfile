@@ -7,8 +7,8 @@ LABEL version="2.0.0"
 LABEL release="1"
 LABEL summary="Community Honey Network Server - Modernized"
 LABEL description="Multi-honeypot sensor management, uses a network of VMs and a centralized server for management."
-LABEL authoritative-source-url="https://github.com/CommunityHoneyNetwork/CHN-Server"
-LABEL changelog-url="https://github.com/CommunityHoneyNetwork/CHN-Server/commits/master"
+LABEL authoritative-source-url="https://github.com/n0xa/CHN-Server"
+LABEL changelog-url="https://github.com/n0xa/CHN-Server/commits/master"
 
 VOLUME /tls
 
@@ -74,7 +74,7 @@ RUN mkdir -p /var/log/mhn \
 RUN mkdir -p /opt/sqlite
 
 # Link to hpfeeds in chnserver
-RUN python3 -m pip install git+https://github.com/CommunityHoneyNetwork/hpfeeds3.git
+RUN python3 -m pip install git+https://github.com/n0xa/hpfeeds3.git
 
 # Link chnctl.py to bindir
 RUN ln -s /opt/chnctl.py /usr/local/bin/chnctl

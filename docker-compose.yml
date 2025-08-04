@@ -1,11 +1,11 @@
-version: '2'
+version: '3.8'
 services:
   mongodb:
-    image: mongo:3.4.24-xenial
+    image: mongo:8.0
     volumes:
       - ./storage/mongodb:/data/db:z
   redis:
-    image: redis:alpine
+    image: redis:7.4-alpine
     volumes:
       - ./storage/redis:/data:z
   hpfeeds3:
