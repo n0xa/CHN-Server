@@ -1,7 +1,7 @@
 # Use Python 3.12 official image
 FROM python:3.12-slim-bookworm
 
-LABEL maintainer="Team STINGAR <team-stingar@duke.edu>"
+LABEL maintainer="n0xa"
 LABEL name="chnserver"
 LABEL version="2.0.0"
 LABEL release="1"
