@@ -36,6 +36,7 @@ def create_sensor():
     else:
         sensor = Sensor(**request.json)
         sensor.uuid = str(uuid4())
+        sensor.identifier = sensor.uuid  # Set identifier to match uuid
         if not sensor.ip:
             sensor.ip = request.remote_addr
         Clio().authkey.new(**sensor.new_auth_dict()).post()

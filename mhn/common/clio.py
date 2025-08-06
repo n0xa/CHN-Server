@@ -515,13 +515,12 @@ class AuthKey(ResourceMixin):
             return super(AuthKey, self).get(options, **kwargs)
 
     def post(self):
-        objectid = self.collection.insert(dict(
+        result = self.collection.insert_one(dict(
                 identifier=self.identifier, secret=self.secret, owner=self.owner,
                 publish=self.publish, subscribe=self.subscribe))
-        self.client.fsync()
-        return objectid
+        return result.inserted_id
 
     def put(self, **kwargs):
-        updated = self.collection.update({"identifier": self.identifier},
-                                         {'$set': kwargs}, upsert=False)
-        return updated
+        result = self.collection.update_one({"identifier": self.identifier},
+                                            {'$set': kwargs}, upsert=False)
+        return result.modified_count
