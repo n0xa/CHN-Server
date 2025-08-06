@@ -156,10 +156,6 @@ generate_config () {
                                         ${SUPERUSER_PASSWORD} \
                                         ${SECRET_KEY} \
                                         ${DEPLOY_KEY}
-
-    # Generate config file for hpfeeds broker
-    cd {{ hpfeeds_dir }}/hpfeeds/broker
-    python3 generateconfig.py unattended ${MONGODB_HOST} ${MONGODB_PORT}
   fi
 
   cd /opt

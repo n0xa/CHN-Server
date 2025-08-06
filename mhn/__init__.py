@@ -444,6 +444,7 @@ def create_clean_db():
 
 
 def create_superuser_entry():
+    from mhn.auth.models import ApiKey
     # Creating superuser entry.
     superuser = user_datastore.create_user(
         email=mhn.config.get('SUPERUSER_EMAIL'),
@@ -476,7 +477,7 @@ def pretty_name(name):
 def reload_scripts():
     from mhn.api.models import DeployScript
 
-    superuser = user_datastore.get_user(mhn.config.get('SUPERUSER_EMAIL'))
+    superuser = user_datastore.find_user(email=mhn.config.get('SUPERUSER_EMAIL'))
     custom_path = './custom_scripts/'
 
     deployscripts = {
