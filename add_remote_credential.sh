@@ -9,7 +9,7 @@ fi
 
 IDENT=$1
 REMOTE=$2
-SECRET=$(tr -dc _A-Z-a-z-0-9 < /dev/urandom | head -c 20)
+SECRET=$(cat /dev/urandom | tr -dc "[_A-Za-z0-9]" | dd bs=20 count=1)
 
 echo "Command to run on remote server:"
 echo "********************************"
