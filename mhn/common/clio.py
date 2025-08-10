@@ -312,10 +312,14 @@ class Session(ResourceMixin):
             result['count'] = r['count']
             return result
 
-        if 'ok' in res:
-            return [
-                format_result(r) for r in res.get('result', [])[:top]
-            ]
+        # Modern PyMongo returns a cursor directly, not a dict with 'ok'
+        try:
+            return [format_result(r) for r in list(res)[:top]]
+        except Exception:
+            # Fallback for older PyMongo versions
+            if hasattr(res, 'get') and 'ok' in res:
+                return [format_result(r) for r in res.get('result', [])[:top]]
+            return []
 
     def top_attackers(self, top=5, hours_ago=None):
         return self._tops('source_ip', top, hours_ago)
@@ -365,12 +369,25 @@ class Session(ResourceMixin):
         ]
 
         res = self.collection.aggregate(query)
-        if 'ok' in res and len(res['result']) > 0:
-            r = res['result'][0]
-            del r['_id']
-            r['first_seen'] = r['first_seen'].isoformat()
-            r['last_seen'] = r['last_seen'].isoformat()
-            return r
+        # Modern PyMongo returns a cursor directly
+        try:
+            results = list(res)
+            if len(results) > 0:
+                r = results[0]
+                if '_id' in r:
+                    del r['_id']
+                r['first_seen'] = r['first_seen'].isoformat()
+                r['last_seen'] = r['last_seen'].isoformat()
+                return r
+        except Exception:
+            # Fallback for older PyMongo versions
+            if hasattr(res, 'get') and 'ok' in res and len(res['result']) > 0:
+                r = res['result'][0]
+                if '_id' in r:
+                    del r['_id']
+                r['first_seen'] = r['first_seen'].isoformat()
+                r['last_seen'] = r['last_seen'].isoformat()
+                return r
 
         return {
             'ip': ip,
