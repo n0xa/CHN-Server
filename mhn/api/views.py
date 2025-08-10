@@ -225,7 +225,6 @@ def get_metadata():
 
 
 @api.route('/top_attackers/', methods=['GET'])
-@token_auth
 def top_attackers():
     options = request.args.to_dict()
     limit = int(options.get('limit', '1000'))
@@ -241,6 +240,8 @@ def top_attackers():
             del options[name]
     results = Clio().session._tops(['source_ip', 'honeypot'], top=limit,
                                    hours_ago=hours_ago, **extra)
+    if results is None:
+        results = []
     return jsonify(
         data=results,
         meta={
@@ -315,7 +316,6 @@ def credential_list():
 
 
 @api.route('/attacker_stats/<ip>/', methods=['GET'])
-@token_auth
 def attacker_stats(ip):
     options = request.args.to_dict()
     hours_ago = int(options.get('hours_ago', '720'))  # 30 days
@@ -324,6 +324,8 @@ def attacker_stats(ip):
         if name not in ('hours_ago', 'limit',):
             del options[name]
     results = Clio().session.attacker_stats(ip, hours_ago=hours_ago)
+    if results is None:
+        results = []
     return jsonify(
         data=results,
         meta={
