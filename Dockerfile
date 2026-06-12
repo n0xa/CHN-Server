@@ -3,7 +3,7 @@ FROM python:3.12-slim-bookworm
 
 LABEL maintainer="n0xa"
 LABEL name="chnserver"
-LABEL version="2.0.0"
+LABEL version="2.2.1"
 LABEL release="1"
 LABEL summary="Community Honey Network Server - Modernized"
 LABEL description="Multi-honeypot sensor management, uses a network of VMs and a centralized server for management."

@@ -174,7 +174,7 @@ class ResourceMixin(object):
             # Need to be at least a valid resource or
             # pass keyword arguments.
             return None
-        return self.collection.remove(query)
+        return self.collection.delete_many(query)
 
     def count(self, **kwargs):
         query = self.__class__._clean_query(kwargs)
