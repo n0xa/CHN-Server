@@ -8,3 +8,4 @@ config.py
 venv/
 sqlite/
 logs/
+.claude/
