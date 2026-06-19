@@ -209,7 +209,7 @@ main () {
              --module mhn:mhn \
              --chmod-socket=666 \
              --buffer-size 04960 \
-             --uid www-data --gid www-data \
+             --master --uid www-data --gid www-data \
              --manage-script-name --mount ${custom_url_path}=mhn:mhn
 }
 
