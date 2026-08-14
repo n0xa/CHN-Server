@@ -174,13 +174,18 @@ make_logdir () {
 
   cd /opt
 
-  local log_file_path=$(awk '/LOG_FILE_PATH/ {print $3}' /opt/config.py |sed "s/'//g")
-  local logdir=$(awk -F/ 'BEGIN{FS=OFS="/"}{NF--; print}' <<< ${log_file_path})
+  # Resolve LOG_FILE_PATH from config.py itself so we honor whatever form it
+  # uses (e.g. os.path.join(...)), rather than fragile text parsing.
+  local log_file_path=$(python3 -c "import config; print(config.LOG_FILE_PATH)")
+  local logdir=$(dirname "${log_file_path}")
 
-  mkdir -p ${logdir}
-  touch ${log_file_path}
+  mkdir -p "${logdir}"
+  touch "${log_file_path}"
 
-  chown -R www-data.root ${log_file_path}
+  # chown the whole dir (recursively) so both the dir and any file already
+  # created by an earlier root-run step (e.g. initdatabase.py) are writable by
+  # the www-data uWSGI worker.
+  chown -R www-data:root "${logdir}"
 }
 
 generate_nginx_config () {
